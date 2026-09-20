@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      POSTGRES_DB: app_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data_3tier:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app_network
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: db
+      DB_NAME: app_db
+      DB_USER: db_user
+      DB_PASSWORD: db_password
+    depends_on:
+      - db
+    networks:
+      - app_network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+volumes:
+  pg_data_3tier:
+
+networks:
+  app_network:
+    driver: bridge
