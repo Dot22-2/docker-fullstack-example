@@ -2,16 +2,21 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: db_user
-      POSTGRES_PASSWORD: db_password
-      POSTGRES_DB: app_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
-      - pg_data_3tier:/var/lib/postgresql/data
+      - pg_data_fullstack:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
@@ -19,13 +24,19 @@ services:
       - "5000:5000"
     environment:
       DB_HOST: db
-      DB_NAME: app_db
-      DB_USER: db_user
-      DB_PASSWORD: db_password
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/users || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build: ./frontend
@@ -35,9 +46,14 @@ services:
       - backend
     networks:
       - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
-  pg_data_3tier:
+  pg_data_fullstack:
 
 networks:
   app_network:
